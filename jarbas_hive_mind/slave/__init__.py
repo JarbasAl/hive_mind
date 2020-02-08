@@ -62,6 +62,8 @@ class HiveMindSlave(HiveMindTerminal):
             # Ignore silently, if a Master is connected to bus it will
             # handle it
             pass
+        elif msg_type == "escalate":
+            self.interface.escalate(payload["payload"], payload)
         else:
             LOG.error("Unknown HiveMind protocol msg_type")
 

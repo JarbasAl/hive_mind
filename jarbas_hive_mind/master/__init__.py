@@ -223,7 +223,8 @@ class HiveMind(WebSocketServerFactory):
             # slave does not know peer name on master, update it
             if data.get("route"):
                 data["route"][-1]["source"] = client.peer
-                data["route"][-1]["targets"].append(self.peer)
+                if self.peer not in data["route"][-1]["targets"]:
+                    data["route"][-1]["targets"].append(self.peer)
             else:
                 data["route"] = [{"source": client.peer,
                                   "targets": [self.peer]}]
@@ -234,6 +235,8 @@ class HiveMind(WebSocketServerFactory):
                 self.handle_propagate_message(data, client)
             elif msg_type == "broadcast":
                 self.handle_broadcast_message(data, client)
+            elif msg_type == "escalate":
+                self.handle_escalate_message(data, client)
 
     # HiveMind protocol messages -  from DOWNstream
     def handle_bus_message(self, payload, client):
@@ -263,6 +266,18 @@ class HiveMind(WebSocketServerFactory):
         LOG.debug("PAYLOAD: " + str(payload))
 
         self.interface.propagate(payload, data)
+
+    def handle_escalate_message(self, data, client):
+        payload = data["payload"]
+
+        LOG.info("Received escalate message at: " + self.node_id)
+        LOG.debug("ROUTE: " + str(data["route"]))
+        LOG.debug("PAYLOAD: " + str(payload))
+
+        # TODO Try to answer
+
+        # else escalate again
+        self.interface.escalate(payload, data)
 
     # parsed protocol messages
     def handle_incoming_mycroft(self, message, client):
@@ -303,6 +318,9 @@ class HiveMind(WebSocketServerFactory):
             # handled here
             self.interface.broadcast(payload, message.data)
 
+        elif msg_type == "escalate":
+            # only slaves can escalate, ignore silently
+            pass
         # NOT a protocol specific message, send directly to requested peer
         elif peer:
             if peer in self.clients:

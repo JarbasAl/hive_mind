@@ -74,7 +74,20 @@ class HiveMindSlaveInterface:
 
     # WIP ZONE
     def escalate(self, payload, msg_data=None):
-        raise NotImplementedError
+        msg_data = msg_data or {}
+        payload = {"msg_type": "escalate",
+                   "payload": payload,
+                   "route": msg_data.get("route", []),
+                   "source_peer": self.peer,
+                   "node": self.client.node_id
+                   }
+
+        route_data = {"source": self.peer,
+                      # when master receives this it will update this field
+                      "targets": [self.peer]}
+        if route_data not in payload["route"]:
+            payload["route"].append(route_data)
+        self.send(payload)
 
     def query(self, payload, msg_data=None):
         raise NotImplementedError
@@ -161,7 +174,20 @@ class HiveMindMasterInterface:
 
     # WIP ZONE
     def escalate(self, payload, msg_data=None):
-        raise NotImplementedError
+        msg_data = msg_data or {}
+        payload = {"msg_type": "escalate",
+                   "payload": payload,
+                   "route": msg_data.get("route", []),
+                   "source_peer": self.peer,
+                   "node": self.node_id
+                   }
+        # tell Slave to escalate upstream
+        if self.bus and msg_data.get("source_peer") != self.peer:
+            message = Message("hive.send",
+                              payload,
+                              {"destination": "hive",
+                               "source": self.peer})
+            self.bus.emit(message)
 
     def query(self, payload, msg_data=None):
         raise NotImplementedError

@@ -130,6 +130,11 @@ class HiveMindTerminal(WebSocketClientFactory, ReconnectingClientFactory):
         LOG.debug("PAYLOAD: " + str(payload))
         self.interface.broadcast(payload, msg_data)
 
+    def handle_escalate_message(self, payload, msg_data):
+        # only Slaves are allowed to escalate, by definition escalate
+        # goes upstream only
+        LOG.debug("Ignoring escalate message from upstream, illegal action")
+
     def handle_incoming_message(self, data):
         payload = data.get("payload")
         if data.get("isBinary"):
@@ -171,6 +176,8 @@ class HiveMindTerminal(WebSocketClientFactory, ReconnectingClientFactory):
             self.handle_propagate_message(payload, msg)
         elif msg_type == "broadcast":
             self.handle_broadcast_message(payload, msg)
+        elif msg_type == "escalate":
+            self.handle_escalate_message(payload, msg)
         else:
             LOG.error("Unknown HiveMind protocol msg_type")
 
