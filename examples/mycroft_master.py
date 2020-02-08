@@ -1,30 +1,25 @@
-from jarbas_hive_mind import HiveMindListener
+from jarbas_hive_mind import get_listener
 from jarbas_hive_mind.configuration import CONFIGURATION
-from jarbas_utils.log import LOG
-from os.path import exists, join
+from jarbas_utils import create_daemon
 
 
-def start_mind(config=None, bus=None):
+def start_mind(config=None, bus=None, daemonic=False):
 
     config = config or CONFIGURATION
 
-    # read configuration
-    port = config["port"]
-    max_connections = config.get("max_connections", -1)
-    certificate_path = config["ssl"]["certificates"]
-    key = join(certificate_path,
-               config["ssl"]["ssl_keyfile"])
-    cert = join(certificate_path,
-                config["ssl"]["ssl_certfile"])
-
-    # generate self signed keys
-    if not exists(key):
-        LOG.warning("ssl keys dont exist")
-        HiveMindListener.generate_keys(certificate_path)
-
     # listen
-    listener = HiveMindListener(port, max_connections, bus)
-    listener.secure_listen(key, cert)
+    listener = get_listener(bus=bus)
+
+    # use http
+    # config["ssl"]["use_ssl"] = False
+
+    # read port and ssl settings
+    listener.load_config(config)
+
+    if daemonic:
+        create_daemon(listener.listen)
+    else:
+        listener.listen()
 
 
 if __name__ == '__main__':

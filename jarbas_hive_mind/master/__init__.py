@@ -6,6 +6,8 @@ from jarbas_hive_mind.exceptions import UnauthorizedKeyError
 from jarbas_utils.log import LOG
 from jarbas_utils.messagebus import Message, get_mycroft_bus
 from jarbas_hive_mind.utils import decrypt_from_json, encrypt_as_json
+from jarbas_hive_mind.interface import HiveMindMasterInterface
+import json
 
 
 platform = "HiveMindV0.7"
@@ -68,13 +70,13 @@ class HiveMindProtocol(WebSocketServerProtocol):
                 "Binary message received: {0} bytes".format(len(payload)))
         else:
             payload = self.decode(payload)
-            LOG.info(
-                "Text message received: {0}".format(payload))
+            #LOG.debug(
+            #    "Text message received: {0}".format(payload))
 
-        self.factory.process_message(self, payload, isBinary)
+        self.factory.on_message(self, payload, isBinary)
 
     def onClose(self, wasClean, code, reason):
-        self.factory.unregister_client(self, reason=u"connection closed")
+        self.factory.unregister_client(self, reason="connection closed")
         LOG.info("WebSocket connection closed: {0}".format(reason))
         ip = self.peer.split(":")[1]
         data = {"ip": ip, "code": code, "reason": "connection closed",
@@ -87,7 +89,7 @@ class HiveMindProtocol(WebSocketServerProtocol):
        Client lost connection, either disconnected or some error.
        Remove client from list of tracked connections.
        """
-        self.factory.unregister_client(self, reason=u"connection lost")
+        self.factory.unregister_client(self, reason="connection lost")
         LOG.info("WebSocket connection lost: {0}".format(reason))
         ip = self.peer.split(":")[1]
         data = {"ip": ip, "reason": "connection lost"}
@@ -106,6 +108,8 @@ class HiveMindProtocol(WebSocketServerProtocol):
                     fragmentSize=None,
                     sync=False,
                     doNotCompress=False):
+        if isinstance(payload, dict):
+            payload = json.dumps(payload)
         if self.crypto_key and not isBinary:
             payload = encrypt_as_json(self.crypto_key, payload)
         if isinstance(payload, str):
@@ -116,11 +120,11 @@ class HiveMindProtocol(WebSocketServerProtocol):
                             doNotCompress=doNotCompress)
 
 
-# server internals
 class HiveMind(WebSocketServerFactory):
     def __init__(self, bus=None, *args, **kwargs):
         super(HiveMind, self).__init__(*args, **kwargs)
         # list of clients
+        self.listener = None
         self.clients = {}
         # ip block policy
         self.ip_list = []
@@ -128,6 +132,21 @@ class HiveMind(WebSocketServerFactory):
         # mycroft_ws
         self.bus = bus or get_mycroft_bus()
         self.register_mycroft_messages()
+
+        self.interface = HiveMindMasterInterface(self)
+
+    def bind(self, listener):
+        self.listener = listener
+
+    @property
+    def peer(self):
+        if self.listener:
+            return self.listener.peer
+        return None
+
+    @property
+    def node_id(self):
+        return self.peer + ":MASTER"
 
     def mycroft_send(self, type, data=None, context=None):
         data = data or {}
@@ -137,9 +156,12 @@ class HiveMind(WebSocketServerFactory):
         self.bus.emit(Message(type, data, context))
 
     def register_mycroft_messages(self):
-        self.bus.on("message", self.handle_message)
-        self.bus.on('hive.client.broadcast', self.handle_broadcast)
-        self.bus.on('hive.client.send', self.handle_send)
+        self.bus.on("message", self.handle_outgoing_mycroft)
+        self.bus.on('hive.send', self.handle_send)
+
+    def shutdown(self):
+        self.bus.remove('message', self.handle_outgoing_mycroft)
+        self.bus.remove('hive.send', self.handle_send)
 
     # websocket handlers
     def register_client(self, client, platform=None):
@@ -152,20 +174,20 @@ class HiveMind(WebSocketServerFactory):
         # see if ip address is blacklisted
         if ip in self.ip_list and self.blacklist:
             LOG.warning("Blacklisted ip tried to connect: " + ip)
-            self.unregister_client(client, reason=u"Blacklisted ip")
+            self.unregister_client(client, reason="Blacklisted ip")
             return
         # see if ip address is whitelisted
         elif ip not in self.ip_list and not self.blacklist:
             LOG.warning("Unknown ip tried to connect: " + ip)
             #  if not whitelisted kick
-            self.unregister_client(client, reason=u"Unknown ip")
+            self.unregister_client(client, reason="Unknown ip")
             return
-        self.clients[client.peer] = {"object": client,
+        self.clients[client.peer] = {"instance": client,
                                      "status": "connected",
                                      "platform": platform}
 
     def unregister_client(self, client, code=3078,
-                          reason=u"unregister client request"):
+                          reason="unregister client request"):
         """
        Remove client from list of managed connections.
        """
@@ -182,83 +204,90 @@ class HiveMind(WebSocketServerFactory):
             client.sendClose(code, reason)
             self.clients.pop(client.peer)
 
-    def process_message(self, client, payload, isBinary):
+    def on_message(self, client, payload, isBinary):
         """
        Process message from client, decide what to do internally here
        """
-        LOG.info("processing message from client: " + str(client.peer))
-        client_data = self.clients[client.peer]
         client_protocol, ip, sock_num = client.peer.split(":")
 
         if isBinary:
             # TODO receive files
             pass
         else:
-            # add context for this message
-            message = Message.deserialize(payload)
-            message.context["source"] = client.peer
-            message.context["destination"] = "skills"
-            if "platform" not in message.context:
-                message.context["platform"] = client_data.get("platform",
-                                                              "unknown")
+            # Check protocol
+            data = json.loads(payload)
+            payload = data["payload"]
+            msg_type = data["msg_type"]
 
-            # messages/skills/intents per user
-            if message.msg_type in client.blacklist.get("messages", []):
-                LOG.warning(client.peer + " sent a blacklisted message "
-                                          "type: " + message.msg_type)
-                return
-            # TODO check intent / skill that will trigger
+            if msg_type == "bus":
+                self.handle_bus_message(payload, client)
 
-            # send client message to internal mycroft bus
-            self.mycroft_send(message.msg_type, message.data, message.context)
+    # HiveMind protocol messages -  from DOWNstream
+    def handle_bus_message(self, payload, client):
+        # Generate mycroft Message
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+        msg_type = payload.get("msg_type") or payload["type"]
+        data = payload.get("data") or {}
+        context = payload.get("context") or {}
+        message = Message(msg_type, data, context)
+        message.context["source"] = client.peer
+        message.context["destination"] = "skills"
+        self.handle_incoming_mycroft(message, client)
+
+    # parsed protocol messages
+    def handle_incoming_mycroft(self, message, client):
+        # A Slave wants to inject a message in internal mycroft bus
+        # You are a Master, authorize bus message
+
+        client_protocol, ip, sock_num = client.peer.split(":")
+
+        # messages/skills/intents per user
+        if message.msg_type in client.blacklist.get("messages", []):
+            LOG.warning(client.peer + " sent a blacklisted message "
+                                      "type: " + message.msg_type)
+            return
+        # TODO check intent / skill that will trigger
+
+        # send client message to internal mycroft bus
+        LOG.info("Forwarding message to mycroft bus from client: " +
+                 str(client.peer))
+        self.mycroft_send(message.msg_type, message.data, message.context)
+
+    def handle_client_bus(self, message, client):
+        # this message is going inside the client bus
+        # take any metrics you need
+        LOG.info("Monitoring bus from client: " + client.peer)
+        assert isinstance(message, Message)
 
     # mycroft handlers
     def handle_send(self, message):
-        # send message to client
-        msg = message.data.get("payload")
-        is_file = message.data.get("isBinary")
+        payload = message.data.get("payload")
         peer = message.data.get("peer")
-        if is_file:
-            # TODO send file
-            pass
-        elif peer in self.clients:
+        if peer and peer in self.clients:
             # send message to client
-            client = self.clients[peer]
-            payload = Message.serialize(msg)
-            client.sendMessage(payload, False)
+            client = self.clients[peer].get("instance")
+            self.interface.send(payload, client)
         else:
             LOG.error("That client is not connected")
             self.mycroft_send("hive.client.send.error",
                               {"error": "That client is not connected",
                                "peer": peer}, message.context)
 
-    def handle_broadcast(self, message):
-        # send message to all clients
-        msg = message.data.get("payload")
-        is_file = message.data.get("isBinary")
-        if is_file:
-            # TODO send file
-            pass
-        else:
-            # send message to all clients
-            server_msg = Message.serialize(msg)
-            self.broadcast(server_msg)
-
-    def handle_message(self, message=None):
+    def handle_outgoing_mycroft(self, message=None):
         # forward internal messages to clients if they are the target
-        message = Message.deserialize(message)
+        if isinstance(message, dict):
+            message = json.dumps(message)
+        if isinstance(message, str):
+            message = Message.deserialize(message)
         if message.msg_type == "complete_intent_failure":
             message.msg_type = "hive.complete_intent_failure"
         message.context = message.context or {}
         peer = message.context.get("destination")
         if peer and peer in self.clients:
-            client_data = self.clients[peer] or {}
-            client = client_data.get("object")
-            message = message.serialize()
-            client.sendMessage(bytes(message, encoding="utf-8"),
-                               False)
+            client = self.clients[peer].get("instance")
+            payload = {"msg_type": "bus",
+                       "payload": message.serialize()
+                       }
+            self.interface.send(payload, client)
 
-    def shutdown(self):
-        self.bus.remove('message', self.handle_message)
-        self.bus.remove('hive.client.broadcast', self.handle_broadcast)
-        self.bus.remove('hive.client.send', self.handle_send)
