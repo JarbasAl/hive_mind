@@ -118,6 +118,12 @@ class HiveMindTerminal(WebSocketClientFactory, ReconnectingClientFactory):
             message.context["platform"] = platform
         self.handle_incoming_mycroft(message)
 
+    def handle_broadcast_message(self, payload, msg_data):
+        LOG.info("Received broadcast message at: " + self.node_id)
+        LOG.debug("ROUTE: " + str(msg_data["route"]))
+        LOG.debug("PAYLOAD: " + str(payload))
+        self.interface.broadcast(payload, msg_data)
+
     def handle_incoming_message(self, data):
         payload = data.get("payload")
         if data.get("isBinary"):
@@ -155,6 +161,8 @@ class HiveMindTerminal(WebSocketClientFactory, ReconnectingClientFactory):
         # Parse hive protocol
         if msg_type == "bus":
             self.handle_bus_message(payload)
+        elif msg_type == "broadcast":
+            self.handle_broadcast_message(payload, msg)
         else:
             LOG.error("Unknown HiveMind protocol msg_type")
 
