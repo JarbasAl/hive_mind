@@ -37,7 +37,19 @@ class HiveMindSlaveInterface:
         self.send(payload)
 
     def broadcast(self, payload, msg_data=None):
-        raise NotImplementedError
+        msg_data = msg_data or {}
+        payload = {"msg_type": "broadcast",
+                   "payload": payload,
+                   "route": msg_data.get("route", []),
+                   "source_peer": self.peer,
+                   "node": self.client.node_id
+                   }
+        if self.bus:
+            message = Message("hive.send",
+                              payload,
+                              {"destination": "hive",
+                               "source": self.peer})
+            self.bus.emit(message)
 
     def propagate(self, payload, msg_data=None):
         raise NotImplementedError
@@ -98,7 +110,14 @@ class HiveMindMasterInterface:
                 self.send(payload, client)
 
     def broadcast(self, payload, msg_data=None):
-        raise NotImplementedError
+        msg_data = msg_data or {}
+        payload = {"msg_type": "broadcast",
+                   "payload": payload,
+                   "route": msg_data.get("route", []),
+                   "source_peer": self.peer
+                   }
+        no_send = [n["source"] for n in msg_data.get("route", [])]
+        self.send_to_many(payload, no_send)
 
     def propagate(self, payload, msg_data=None):
         raise NotImplementedError

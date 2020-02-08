@@ -66,7 +66,7 @@ class HiveMindProtocol(WebSocketServerProtocol):
 
     def onMessage(self, payload, isBinary):
         if isBinary:
-            LOG.info(
+            LOG.debug(
                 "Binary message received: {0} bytes".format(len(payload)))
         else:
             payload = self.decode(payload)
@@ -221,6 +221,8 @@ class HiveMind(WebSocketServerFactory):
 
             if msg_type == "bus":
                 self.handle_bus_message(payload, client)
+            elif msg_type == "broadcast":
+                self.handle_broadcast_message(data, client)
 
     # HiveMind protocol messages -  from DOWNstream
     def handle_bus_message(self, payload, client):
@@ -234,6 +236,12 @@ class HiveMind(WebSocketServerFactory):
         message.context["source"] = client.peer
         message.context["destination"] = "skills"
         self.handle_incoming_mycroft(message, client)
+
+    def handle_broadcast_message(self, data, client):
+        # Slaves are not allowed to broadcast, by definition broadcast goes
+        # downstream only, use propagate instead
+        LOG.debug("Ignoring broadcast message from downstream, illegal action")
+        # TODO kick client for misbehaviour so it stops doing that?
 
     # parsed protocol messages
     def handle_incoming_mycroft(self, message, client):
@@ -264,15 +272,24 @@ class HiveMind(WebSocketServerFactory):
     def handle_send(self, message):
         payload = message.data.get("payload")
         peer = message.data.get("peer")
-        if peer and peer in self.clients:
-            # send message to client
-            client = self.clients[peer].get("instance")
-            self.interface.send(payload, client)
-        else:
-            LOG.error("That client is not connected")
-            self.mycroft_send("hive.client.send.error",
-                              {"error": "That client is not connected",
-                               "peer": peer}, message.context)
+        msg_type = message.data["msg_type"]
+        if msg_type == "broadcast":
+            # slaves can not broadcast and will send a bus message instead
+            # if the mycroft device has it's own hive the broadcast is
+            # handled here
+            self.interface.broadcast(payload, message.data)
+
+        # NOT a protocol specific message, send directly to requested peer
+        elif peer:
+            if peer in self.clients:
+                # send message to client
+                client = self.clients[peer].get("instance")
+                self.interface.send(payload, client)
+            else:
+                LOG.error("That client is not connected")
+                self.mycroft_send("hive.client.send.error",
+                                  {"error": "That client is not connected",
+                                   "peer": peer}, message.context)
 
     def handle_outgoing_mycroft(self, message=None):
         # forward internal messages to clients if they are the target
