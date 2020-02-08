@@ -1,168 +1,99 @@
-import json
-from autobahn.twisted.websocket import WebSocketClientFactory, \
-    WebSocketClientProtocol
-from twisted.internet.protocol import ReconnectingClientFactory
-
+from jarbas_hive_mind.slave.terminal import HiveMindTerminal, \
+    HiveMindTerminalProtocol
 from jarbas_utils.log import LOG
 from jarbas_utils.messagebus import Message, get_mycroft_bus
-from jarbas_hive_mind.exceptions import UnauthorizedKeyError
-from jarbas_hive_mind.utils import decrypt_from_json, encrypt_as_json, \
-    serialize_message
-
+import json
 
 platform = "HiveMindSlaveV0.2"
 
 
-class HiveMindSlaveProtocol(WebSocketClientProtocol):
+class HiveMindSlaveProtocol(HiveMindTerminalProtocol):
+
+    @property
+    def bus(self):
+        return self.factory.bus
 
     def onConnect(self, response):
-        LOG.info("HiveMind connected: {0}".format(response.peer))
-        self.factory.bus.emit(Message("hive.mind.connected",
-                                      {"server_id": response.headers[
-                                              "server"]}))
-        self.factory.client = self
-        self.factory.status = "connected"
+        self.bus.emit(Message("hive.mind.connected",
+                              {"server_id": response.headers["server"]}))
+        super().onConnect(response)
 
     def onOpen(self):
-        LOG.info("HiveMind WebSocket connection open. ")
-        self.factory.bus.emit(Message("hive.mind.websocket.open"))
-
-    def onMessage(self, payload, isBinary):
-        LOG.info("status: " + self.factory.status)
-        if not isBinary:
-            payload = self.decode(payload)
-            data = {"payload": payload, "isBinary": isBinary}
-        else:
-            data = {"payload": None, "isBinary": isBinary}
-        self.factory.bus.emit(Message("hive.mind.message.received",
-                                      data))
-
-    def decode(self, payload):
-        payload = payload.decode("utf-8")
-        if self.factory.crypto_key:
-            LOG.debug("Decrypting message with key: {key}".format(
-                key=self.factory.crypto_key))
-            payload = decrypt_from_json(self.factory.crypto_key, payload)
-        msg = json.loads(payload)
-        return msg
+        self.bus.emit(Message("hive.mind.websocket.open"))
+        super().onOpen()
 
     def onClose(self, wasClean, code, reason):
-        if "WebSocket connection upgrade failed" in reason:
-            # key rejected
-            LOG.error("Key rejected")
-        LOG.warning("HiveMind WebSocket connection closed: {0}".format(reason))
-        self.factory.bus.emit(Message("hive.mind.connection.closed",
-                                      {"wasClean": wasClean,
-                                       "reason": reason,
-                                       "code": code}))
-        self.factory.client = None
-        self.factory.status = "disconnected"
-        if "WebSocket connection upgrade failed" in reason:
-            # key rejected
-            LOG.error("Key rejected")
-            raise UnauthorizedKeyError
-
-    def sendMessage(self,
-                    payload,
-                    isBinary=False,
-                    fragmentSize=None,
-                    sync=False,
-                    doNotCompress=False):
-        if self.factory.crypto_key and not isBinary:
-            LOG.debug("Encrypting message with key: {key}".format(
-                key=self.factory.crypto_key))
-            payload = encrypt_as_json(self.factory.crypto_key,
-                                      bytes(payload, encoding="utf-8"))
-        if isinstance(payload, str):
-            payload = bytes(payload, encoding="utf-8")
-        super().sendMessage(payload, isBinary, fragmentSize=fragmentSize,
-                            sync=sync, doNotCompress=doNotCompress)
+        self.bus.emit(Message("hive.mind.client.closed",
+                              {"wasClean": wasClean,
+                               "reason": reason,
+                               "code": code}))
+        super().onClose(wasClean, code, reason)
 
 
-class HiveMindSlave(WebSocketClientFactory, ReconnectingClientFactory):
+class HiveMindSlave(HiveMindTerminal):
     protocol = HiveMindSlaveProtocol
 
-    def __init__(self, bus=None, crypto_key=None, *args, **kwargs):
+    def __init__(self, bus=None, *args, **kwargs):
         super(HiveMindSlave, self).__init__(*args, **kwargs)
-        self.client = None
-        self.status = "disconnected"
-        self.crypto_key = crypto_key
         # mycroft_ws
         self.bus = bus or get_mycroft_bus()
         self.register_mycroft_messages()
 
-    # initialize methods
+    # mycroft methods
     def register_mycroft_messages(self):
-        self.bus.on("hive.mind.message.received",
-                    self.handle_incoming_message)
-        self.bus.on("hive.mind.message.send",
-                    self.handle_outgoing_message)
+        self.bus.on("message", self.handle_outgoing_mycroft)
+        self.bus.on("hive.send", self.handle_send)
 
     def shutdown(self):
-        self.bus.remove("hive.mind.message.received",
-                        self.handle_incoming_message)
-        self.bus.remove("hive.mind.message.send",
-                        self.handle_outgoing_message)
+        self.bus.remove("message", self.handle_outgoing_mycroft)
+        self.bus.remove("hive.send", self.handle_send)
+
+    def handle_send(self, message):
+        payload = message.data
+        msg_type = payload["msg_type"]
+
+        if msg_type == "bus":
+            mycroft_message = payload["payload"]
+            self.send_to_hivemind_bus(mycroft_message)
+        else:
+            LOG.error("Unknown HiveMind protocol msg_type")
+
+    def handle_outgoing_mycroft(self, message=None):
+        # forward internal messages to clients if they are the target
+        if isinstance(message, dict):
+            message = json.dumps(message)
+        if isinstance(message, str):
+            message = Message.deserialize(message)
+        if message.msg_type == "complete_intent_failure":
+            message.msg_type = "hive.complete_intent_failure"
+        message.context = message.context or {}
+        message.context["source"] = self.client.peer
+        peer = message.context.get("destination")
+        message = message.serialize()
+        if peer and peer == self.client.peer:
+            payload = {"msg_type": "bus",
+                       "payload": message
+                       }
+            self.interface.send(payload)
+
+    # parsed protocol messages
+    def handle_incoming_mycroft(self, message):
+        """ HiveMind is sending a mycroft bus message"""
+        # you are a slave_connection, just forward to the bus
+        self.bus.emit(message)
+
+    # HiveMind protocol messages
+    def handle_incoming_message(self, payload):
+        self.bus.emit(Message("hive.mind.message.received", payload))
+        super().handle_incoming_message(payload)
 
     # websocket handlers
-    def clientConnectionFailed(self, connector, reason):
-        LOG.error(
-            "HiveMind connection failed: " + str(reason) + " .. retrying ..")
-        self.status = "disconnected"
-        self.retry(connector)
+    def on_binary(self, payload):
+        # TODO receive binary file
+        LOG.info("[BINARY MESSAGE]")
 
-    def clientConnectionLost(self, connector, reason):
-        LOG.error(
-            "HiveMind connection lost: " + str(reason) + " .. retrying ..")
-        self.status = "disconnected"
-        self.retry(connector)
-
-    # mycroft handlers
-    def handle_incoming_message(self, message):
-        server_msg = message.data.get("payload")
-        is_file = message.data.get("isBinary")
-        if is_file:
-            # TODO received file
-            pass
-        else:
-            # forward server message to internal bus
-            message = Message.deserialize(server_msg)
-            self.bus.emit(message)
-
-    def handle_outgoing_message(self, message):
-        server_msg = message.data.get("payload")
-        is_file = message.data.get("isBinary")
-        if is_file:
-            # TODO send file
-            pass
-        else:
-            # send message to server
-            server_msg = Message.deserialize(server_msg)
-            server_msg.context["platform"] = platform
-            self.sendMessage(server_msg.msg_type,
-                             server_msg.data,
-                             server_msg.context)
-
-    def sendRaw(self, data):
-        if self.client is None:
-            LOG.error("Client is none")
-            return
-        self.client.sendMessage(data, isBinary=True)
-
-    def sendMessage(self, type, data, context=None):
-        if self.client is None:
-            LOG.error("Client is none")
-            return
-        if context is None:
-            context = {}
-        msg = serialize_message(Message(type, data, context))
-
-        self.client.sendMessage(msg, isBinary=False)
-
+    def send_to_hivemind_bus(self, payload):
+        super().send_to_hivemind_bus(payload)
         self.bus.emit(Message("hive.mind.message.sent",
-                              {"type": type,
-                               "data": data,
-                               "context": context,
-                               "raw": msg}))
-
+                              {"payload": payload}))
 

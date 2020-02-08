@@ -1,18 +1,19 @@
-from jarbas_hive_mind import HiveMindConnection
+from jarbas_hive_mind import get_connection
 from jarbas_hive_mind.slave import HiveMindSlave
 
 
-def connect_to_hivemind(host="127.0.0.1", port=5678, name="Jarbas Drone",
-                        key="drone_key", crypto_key="1L6z3WAtk4c5U9sS",
-                        useragent="JarbasDroneV0.1",
+def connect_to_hivemind(host="wss://0.0.0.0", port=5678,
+                        name="Jarbas Drone",
+                        key="dummy_key", crypto_key=None,
+                        useragent="JarbasDroneV0.2",
                         bus=None):
-    con = HiveMindConnection(host, port)
+    con = get_connection(host, port)
 
-    factory = HiveMindSlave(bus=bus, headers=con.get_headers(name, key),
-                            crypto_key=crypto_key,
-                            useragent=useragent)
+    component = HiveMindSlave(bus=bus, headers=con.get_headers(name, key),
+                              crypto_key=crypto_key, useragent=useragent)
 
-    con.secure_connect(factory)
+    # will check url for ssl
+    con.connect(component)
 
 
 if __name__ == '__main__':
