@@ -55,6 +55,8 @@ class HiveMindSlave(HiveMindTerminal):
         if msg_type == "bus":
             mycroft_message = payload["payload"]
             self.send_to_hivemind_bus(mycroft_message)
+        elif msg_type == "propagate":
+            self.interface.propagate(payload["payload"], payload)
         elif msg_type == "broadcast":
             # LOG.debug("Slaves can not broadcast messages")
             # Ignore silently, if a Master is connected to bus it will

@@ -52,8 +52,27 @@ class HiveMindSlaveInterface:
             self.bus.emit(message)
 
     def propagate(self, payload, msg_data=None):
-        raise NotImplementedError
+        msg_data = msg_data or {}
+        payload = {"msg_type": "propagate",
+                   "payload": payload,
+                   "route": msg_data.get("route", []),
+                   "source_peer": self.peer,
+                   "node": self.client.node_id
+                   }
 
+        no_send = [n["source"] for n in msg_data.get("route", [])]
+        if self.peer not in no_send:
+            self.send(payload)
+
+        if self.bus and msg_data.get("node", "") == \
+                self.peer + ":MASTER":
+            message = Message("hive.send",
+                              payload,
+                              {"destination": "hive",
+                               "source": self.peer})
+            self.bus.emit(message)
+
+    # WIP ZONE
     def escalate(self, payload, msg_data=None):
         raise NotImplementedError
 
@@ -120,8 +139,27 @@ class HiveMindMasterInterface:
         self.send_to_many(payload, no_send)
 
     def propagate(self, payload, msg_data=None):
-        raise NotImplementedError
+        msg_data = msg_data or {}
+        payload = {"msg_type": "propagate",
+                   "payload": payload,
+                   "route": msg_data.get("route", []),
+                   "source_peer": self.peer,
+                   "node": self.node_id
+                   }
 
+        no_send = [n["source"] for n in msg_data.get("route", [])]
+        self.send_to_many(payload, no_send)
+
+        # tell Slave to propagate upstream
+        if self.bus and msg_data.get("source_peer") != self.peer:
+            payload["msg_type"] = "propagate"
+            message = Message("hive.send",
+                              payload,
+                              {"destination": "hive",
+                               "source": self.peer})
+            self.bus.emit(message)
+
+    # WIP ZONE
     def escalate(self, payload, msg_data=None):
         raise NotImplementedError
 

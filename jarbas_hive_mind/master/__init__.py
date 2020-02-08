@@ -218,9 +218,20 @@ class HiveMind(WebSocketServerFactory):
             data = json.loads(payload)
             payload = data["payload"]
             msg_type = data["msg_type"]
+            data["source_peer"] = client.peer
+
+            # slave does not know peer name on master, update it
+            if data.get("route"):
+                data["route"][-1]["source"] = client.peer
+                data["route"][-1]["targets"].append(self.peer)
+            else:
+                data["route"] = [{"source": client.peer,
+                                  "targets": [self.peer]}]
 
             if msg_type == "bus":
                 self.handle_bus_message(payload, client)
+            elif msg_type == "propagate":
+                self.handle_propagate_message(data, client)
             elif msg_type == "broadcast":
                 self.handle_broadcast_message(data, client)
 
@@ -242,6 +253,16 @@ class HiveMind(WebSocketServerFactory):
         # downstream only, use propagate instead
         LOG.debug("Ignoring broadcast message from downstream, illegal action")
         # TODO kick client for misbehaviour so it stops doing that?
+
+    def handle_propagate_message(self, data, client):
+
+        payload = data["payload"]
+
+        LOG.info("Received propagate message at: " + self.node_id)
+        LOG.debug("ROUTE: " + str(data["route"]))
+        LOG.debug("PAYLOAD: " + str(payload))
+
+        self.interface.propagate(payload, data)
 
     # parsed protocol messages
     def handle_incoming_mycroft(self, message, client):
@@ -273,7 +294,10 @@ class HiveMind(WebSocketServerFactory):
         payload = message.data.get("payload")
         peer = message.data.get("peer")
         msg_type = message.data["msg_type"]
-        if msg_type == "broadcast":
+        if msg_type == "propagate":
+            self.interface.propagate(payload, message.data)
+
+        elif msg_type == "broadcast":
             # slaves can not broadcast and will send a bus message instead
             # if the mycroft device has it's own hive the broadcast is
             # handled here

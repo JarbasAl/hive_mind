@@ -118,6 +118,12 @@ class HiveMindTerminal(WebSocketClientFactory, ReconnectingClientFactory):
             message.context["platform"] = platform
         self.handle_incoming_mycroft(message)
 
+    def handle_propagate_message(self, payload, msg_data):
+        LOG.info("Received propagate message at: " + self.node_id)
+        LOG.debug("ROUTE: " + str(msg_data["route"]))
+        LOG.debug("PAYLOAD: " + str(payload))
+        self.interface.propagate(payload, msg_data)
+
     def handle_broadcast_message(self, payload, msg_data):
         LOG.info("Received broadcast message at: " + self.node_id)
         LOG.debug("ROUTE: " + str(msg_data["route"]))
@@ -161,6 +167,8 @@ class HiveMindTerminal(WebSocketClientFactory, ReconnectingClientFactory):
         # Parse hive protocol
         if msg_type == "bus":
             self.handle_bus_message(payload)
+        elif msg_type == "propagate":
+            self.handle_propagate_message(payload, msg)
         elif msg_type == "broadcast":
             self.handle_broadcast_message(payload, msg)
         else:
