@@ -1,6 +1,6 @@
 # HiveMind
 
-check [examples](./examples) for setup
+Check [examples](./examples) for setup
 
 - run add_keys to add authorized connection
 - run mycroft_master in mycroft device
@@ -32,7 +32,7 @@ check [examples](./examples) for setup
 - [Flask Microservices Node]() - Coming soon
 
 
-### Mesh Networkin
+### Mesh Networking
 
 The glocal mycroft bus
 
@@ -42,7 +42,7 @@ Yellow - reply message
 
 #### Broadcast
 
-propagate message to all slaves
+Propagate message to all slaves
 
 ![](./data_flow/broadcast.gif)
 
