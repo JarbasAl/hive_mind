@@ -1,7 +1,7 @@
 import json
 from jarbas_hive_mind.configuration import CONFIGURATION
 from json_database import JsonDatabase
-from jarbas_utils.log import LOG
+from ovos_utils.log import LOG
 
 
 class Client:

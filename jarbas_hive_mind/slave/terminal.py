@@ -1,4 +1,4 @@
-from jarbas_utils.log import LOG
+from ovos_utils.log import LOG
 from autobahn.twisted.websocket import WebSocketClientFactory, \
     WebSocketClientProtocol
 from twisted.internet.protocol import ReconnectingClientFactory
@@ -6,7 +6,7 @@ from jarbas_hive_mind.exceptions import UnauthorizedKeyError, \
     SecureConnectionFailed, ConnectionError, HiveMindEntryPointNotFound
 from jarbas_hive_mind.utils import encrypt_as_json, decrypt_from_json
 from jarbas_hive_mind.interface import HiveMindSlaveInterface
-from jarbas_utils.messagebus import Message
+from ovos_utils.messagebus import Message
 import json
 from twisted.internet import reactor
 

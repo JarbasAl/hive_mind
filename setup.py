@@ -15,7 +15,7 @@ setup(
                       "service_identity",
                       "autobahn",
                       "twisted",
-                      "jarbas_utils>=0.5.0",
+                      "ovos_utils>=0.0.1",
                       "json_database>=0.2.6",
                       "pycryptodome",
                       "upnpclient>=0.0.8"],

@@ -1,5 +1,5 @@
 from jarbas_hive_mind.configuration import CONFIGURATION, default_config
-from jarbas_utils.log import LOG
+from ovos_utils.log import LOG
 
 
 if "sql" not in CONFIGURATION["database"].split(":/")[0]:

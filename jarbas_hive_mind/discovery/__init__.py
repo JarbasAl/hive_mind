@@ -1,8 +1,8 @@
 import upnpclient
 import threading
 from time import sleep
-from jarbas_utils.log import LOG
-from jarbas_utils.xml_helper import xml2dict
+from ovos_utils.log import LOG
+from ovos_utils.xml_helper import xml2dict
 from jarbas_hive_mind.slave import HiveMindSlave
 from jarbas_hive_mind.slave.terminal import HiveMindTerminal
 from jarbas_hive_mind.discovery.zero import ZeroScanner

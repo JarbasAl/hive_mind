@@ -1,7 +1,7 @@
 from jarbas_hive_mind.slave.terminal import HiveMindTerminal, \
     HiveMindTerminalProtocol
-from jarbas_utils.log import LOG
-from jarbas_utils.messagebus import Message, get_mycroft_bus
+from ovos_utils.log import LOG
+from ovos_utils.messagebus import Message, get_mycroft_bus
 import json
 
 platform = "HiveMindSlaveV0.2"

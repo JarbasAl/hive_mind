@@ -8,8 +8,8 @@ from OpenSSL import crypto
 import json
 from jarbas_hive_mind.settings import CERTS_PATH, LOG_BLACKLIST
 from jarbas_hive_mind.exceptions import DecryptionKeyError, EncryptionKeyError
-from jarbas_utils.log import LOG
-from jarbas_utils.security import encrypt, decrypt
+from ovos_utils.log import LOG
+from ovos_utils.security import encrypt, decrypt
 from binascii import hexlify, unhexlify
 import socket
 

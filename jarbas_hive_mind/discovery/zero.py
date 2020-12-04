@@ -1,5 +1,5 @@
 from jarbas_hive_mind.utils import get_ip
-from jarbas_utils.log import LOG
+from ovos_utils.log import LOG
 import time
 from zeroconf import Zeroconf, ServiceInfo
 import ipaddress

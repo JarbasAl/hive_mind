@@ -6,8 +6,8 @@ from jarbas_hive_mind.configuration import CONFIGURATION
 from jarbas_hive_mind.settings import DEFAULT_PORT
 from jarbas_hive_mind.utils import create_self_signed_cert
 from jarbas_hive_mind.exceptions import SecureConnectionFailed, ConnectionError
-from jarbas_utils.messagebus import get_mycroft_bus
-from jarbas_utils.log import LOG
+from ovos_utils.messagebus import get_mycroft_bus
+from ovos_utils.log import LOG
 from os.path import join, exists, isfile
 from twisted.python.log import err
 import logging

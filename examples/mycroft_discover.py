@@ -1,6 +1,6 @@
 from jarbas_hive_mind.discovery import LocalDiscovery
 from jarbas_hive_mind import HiveMindConnection
-from jarbas_utils.log import LOG
+from ovos_utils.log import LOG
 
 
 def discover_hivemind(key="dummy_key",

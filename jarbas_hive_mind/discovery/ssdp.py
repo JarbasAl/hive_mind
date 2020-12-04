@@ -16,7 +16,7 @@ import socket
 from email.utils import formatdate
 from errno import ENOPROTOOPT
 import threading
-from jarbas_utils.log import LOG
+from ovos_utils.log import LOG
 
 SSDP_PORT = 1900
 SSDP_ADDR = '239.255.255.250'

@@ -3,8 +3,8 @@ from autobahn.twisted.websocket import WebSocketServerProtocol, \
     WebSocketServerFactory
 from jarbas_hive_mind.database import ClientDatabase
 from jarbas_hive_mind.exceptions import UnauthorizedKeyError
-from jarbas_utils.log import LOG
-from jarbas_utils.messagebus import Message, get_mycroft_bus
+from ovos_utils.log import LOG
+from ovos_utils.messagebus import Message, get_mycroft_bus
 from jarbas_hive_mind.utils import decrypt_from_json, encrypt_as_json
 from jarbas_hive_mind.interface import HiveMindMasterInterface
 import json
