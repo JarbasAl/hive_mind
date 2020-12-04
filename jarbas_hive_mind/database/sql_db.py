@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
 
-from jarbas_utils.log import LOG
+from ovos_utils.log import LOG
 from jarbas_hive_mind.configuration import CONFIGURATION
 
 Base = declarative_base()

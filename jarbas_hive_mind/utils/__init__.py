@@ -15,7 +15,7 @@ import socket
 
 
 def get_ip():
-    # TODO move to jarbas_utils
+    # TODO move to ovos_utils
     return [l for l in (
         [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if
          not ip.startswith("127.")][:1], [
