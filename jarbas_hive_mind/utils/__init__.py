@@ -11,18 +11,10 @@ from jarbas_hive_mind.exceptions import DecryptionKeyError, EncryptionKeyError
 from ovos_utils.log import LOG
 from ovos_utils.security import encrypt, decrypt
 from binascii import hexlify, unhexlify
-import socket
 
-
-def get_ip():
-    # TODO move to ovos_utils
-    return [l for l in (
-        [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if
-         not ip.startswith("127.")][:1], [
-            [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s
-             in
-             [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][
-        0][0]
+# this used to be a method here, keep here for now in case something is
+# importing it, TODO deprecate
+from ovos_utils import get_ip
 
 
 def validate_param(value, name):

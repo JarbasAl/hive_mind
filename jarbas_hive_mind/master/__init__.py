@@ -5,10 +5,10 @@ from jarbas_hive_mind.database import ClientDatabase
 from jarbas_hive_mind.exceptions import UnauthorizedKeyError
 from ovos_utils.log import LOG
 from ovos_utils.messagebus import Message, get_mycroft_bus
+from ovos_utils import get_ip
 from jarbas_hive_mind.utils import decrypt_from_json, encrypt_as_json
 from jarbas_hive_mind.interface import HiveMindMasterInterface
 import json
-from jarbas_hive_mind.utils import get_ip
 from jarbas_hive_mind.discovery.ssdp import SSDPServer
 from jarbas_hive_mind.discovery.upnp_server import UPNPHTTPServer
 from jarbas_hive_mind.discovery.zero import ZeroConfAnnounce
