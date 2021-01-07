@@ -2,6 +2,12 @@
   <img src="./resources/logo/hivemind-512.png">
 </p>
 
+HiveMind is a community-developed superset or extension of [Mycroft](https://www.github.com/MycroftAI/mycroft-core), the open-source voice assistant.
+
+With HiveMind, you can extend one (or more, but usually just one!) instance of Mycroft to as many devices as you want, including devices that can't ordinarily run Mycroft!
+
+HiveMind's developers have successfully connected to Mycroft from a PinePhone, a 2009 MacBook, and a Raspberry Pi 0, among other devices. Mycroft itself usually runs on our desktop computers or our home servers, but you can use any Mycroft-branded device, or [OpenVoiceOS](https://github.com/OpenVoiceOS/), as your central unit.
+
 # Stats:
 
 | [![GitHub stars](https://img.shields.io/github/stars/OpenJarbas/HiveMind-core.svg)](https://github.com/OpenJarbas/HiveMind-core/stargazers)  | [![GitHub last commit](https://img.shields.io/github/last-commit/OpenJarbas/HiveMind-core.svg)](https://github.com/OpenJarbas/HiveMind-core/commits/dev) |
@@ -14,31 +20,31 @@
 
 # Getting started
 
-At this moment development is in early stages but mostly stable. 
+**NOTE:** Hivemind-core is also available as a Mycroft skill. You can use it *either* as a standalone program *or* as a Mycroft skill, but you can't run them both at the same time. During early development, testers are encouraged to choose this repository over the skill, as development takes place here.
 
-You will need to look around existing projects and examples folder until documentation is written and the project a little more polished
+---
 
-The easiest way to get started is by using the [Hivemind Skill](https://github.com/JarbasSkills/skill-hivemind)
+At this moment development is in early stages, but mostly stable. Functionality is limited to basic questions and answers, but only because we haven't implemented the bit that lets Mycroft re-activate the mic to continue a discussion. 
+
+Full tutorials will follow later. For now, you wanna do this:
+
+1. Clone this repo onto the computer or device that's running Mycroft.
+2. Note the scripts in the `examples` folder. These are enough to spin up your Hive and connect to Mycroft from another device.
+3. Edit `examples/add_keys.py` to create names and keys for your devices. You can use HiveMind without encryption, but it's discouraged for security reasons.
+4. Ensure Mycroft is running.
+5. Run `examples/mycroft_master.py`. Your Hive is now running, and you're ready to connect. See below to find a client (ideally the Voice Satellite). You will need to know the hostname or IP address of the computer or device running Mycroft, and you'll also need the device name and key you created earlier.
+
 
 The main configuration can be found at
 
     '~/.cache/json_database/HivemindCore.json'
-
-# Components
-
-Hivemind spans several projects, see links bellow for the current ecosystem
-
-check [examples](./examples) for setup
-
-- run add_keys to add authorized connection
-- run mycroft_master in mycroft device
 
 ![](./resources/hivemind.png)
 ![](./resources/hive.png)
 
 ## Terminals
 
-- [Remote Cli](https://github.com/OpenJarbas/HiveMind-cli)
+- [Remote Cli](https://github.com/OpenJarbas/HiveMind-cli) **\<-- USE THIS FIRST**
 - [Voice Satellite](https://github.com/OpenJarbas/HiveMind-voice-sat)
 - [Flask Chatroom](https://github.com/OpenJarbas/HiveMind-flask-chatroom)
 - [Webchat](https://github.com/OpenJarbas/HiveMind---Webchat-Terminal)
