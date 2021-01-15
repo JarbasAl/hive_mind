@@ -255,10 +255,10 @@ class HiveMind(WebSocketServerFactory):
             #  if not whitelisted kick
             self.unregister_client(client, reason="Unknown ip")
             return
-        self.handle_register(client, platform)
         self.clients[client.peer] = {"instance": client,
                                      "status": "connected",
                                      "platform": platform}
+        self.handle_register(client, platform)
 
     def handle_unregister(self, client, code, reason, context):
         """ called before unregistering a client, subclasses can take
