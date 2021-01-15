@@ -109,6 +109,8 @@ class HiveMindConnection:
 
 class HiveMindListener:
     _autorun = True
+    default_factory = HiveMind
+    default_protocol = HiveMindProtocol
 
     def __init__(self, port=DEFAULT_PORT, max_cons=-1, bus=None):
         self.host = "0.0.0.0"
@@ -189,8 +191,8 @@ class HiveMindListener:
         # SSL server context: load server key and certificate
         contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
 
-        factory = factory or HiveMind(bus=self.bus)
-        factory.protocol = protocol or HiveMindProtocol
+        factory = factory or self.default_factory(bus=self.bus)
+        factory.protocol = protocol or self.default_protocol
         if self.max_cons >= 0:
             factory.setProtocolOptions(maxConnections=self.max_cons)
         factory.bind(self)
@@ -203,8 +205,8 @@ class HiveMindListener:
 
     def unsafe_listen(self, factory=None, protocol=None):
         self._use_ssl = False
-        factory = factory or HiveMind(bus=self.bus)
-        factory.protocol = protocol or HiveMindProtocol
+        factory = factory or self.default_factory(bus=self.bus)
+        factory.protocol = protocol or self.default_protocol
         if self.max_cons >= 0:
             factory.setProtocolOptions(maxConnections=self.max_cons)
         factory.bind(self)
