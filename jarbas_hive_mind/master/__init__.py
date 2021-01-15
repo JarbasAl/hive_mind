@@ -287,6 +287,13 @@ class HiveMind(WebSocketServerFactory):
     def handle_binary_message(self, client, payload):
         """ binary data handler, can be for example an audio stream """
 
+    def handle_message(self, data, client):
+        """ message handler for non default message types, subclasses can
+        handle their own types here
+
+        data contains payload, msg_type, source_peer, route
+        """
+
     def on_message(self, client, payload, isBinary):
         """
        Process message from client, decide what to do internally here
@@ -319,6 +326,8 @@ class HiveMind(WebSocketServerFactory):
                 self.handle_broadcast_message(data, client)
             elif msg_type == "escalate":
                 self.handle_escalate_message(data, client)
+            else:
+                self.handle_message(data, client)
 
     # HiveMind protocol messages -  from DOWNstream
     def handle_bus_message(self, payload, client):
