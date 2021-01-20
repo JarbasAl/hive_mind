@@ -67,6 +67,8 @@ class HiveMindSlave(HiveMindTerminal):
             LOG.error("Unknown HiveMind protocol msg_type")
 
     def handle_outgoing_mycroft(self, message=None):
+        if not self.client:
+            return  # not connected to hivemind yet
         # forward internal messages to clients if they are the target
         if isinstance(message, dict):
             message = json.dumps(message)
