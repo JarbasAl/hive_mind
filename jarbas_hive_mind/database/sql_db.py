@@ -106,7 +106,7 @@ class SQLClientDatabase:
         return user.crypto_key
 
     def add_client(self, name=None, mail=None, key="", admin=False,
-                   blacklist="{}", crypto_key="RESISTENCEisFUTILE"):
+                   blacklist="{}", crypto_key=None):
         if isinstance(blacklist, dict):
             blacklist = json.dumps(blacklist)
 

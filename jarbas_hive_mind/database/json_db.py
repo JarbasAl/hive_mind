@@ -104,7 +104,7 @@ class JsonClientDatabase(JsonDatabase):
         return self.search_by_value("name", name)
 
     def add_client(self, name=None, mail=None, key="",
-                   admin=None, blacklist=None, crypto_key="RESISTENCEisFUTILE"):
+                   admin=None, blacklist=None, crypto_key=None):
 
         user = self.get_client_by_api_key(key)
         item_id = self.get_item_id(user)
