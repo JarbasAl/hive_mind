@@ -189,7 +189,7 @@ class HiveMind(WebSocketServerFactory):
                                               model_name="HiveMind-core",
                                               model_number="0.9",
                                               model_url="https://github.com/OpenJarbas/HiveMind-core",
-                                              serial_number=self.platform,
+                                              serial_number=self.protocol.platform,
                                               uuid=device_uuid,
                                               presentation_url=hivemind_socket,
                                               host=local_ip_address)
@@ -221,7 +221,7 @@ class HiveMind(WebSocketServerFactory):
         data = data or {}
         context = context or {}
         if "client_name" not in context:
-            context["client_name"] = self.platform
+            context["client_name"] = self.protocol.platform
         self.bus.emit(Message(type, data, context))
 
     def register_mycroft_messages(self):

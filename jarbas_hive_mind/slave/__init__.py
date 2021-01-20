@@ -4,10 +4,9 @@ from ovos_utils.log import LOG
 from ovos_utils.messagebus import Message, get_mycroft_bus
 import json
 
-platform = "HiveMindSlaveV0.2"
-
 
 class HiveMindSlaveProtocol(HiveMindTerminalProtocol):
+    platform = "HiveMindSlaveV0.2"
 
     @property
     def bus(self):

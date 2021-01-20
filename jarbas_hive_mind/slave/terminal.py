@@ -10,10 +10,11 @@ from ovos_utils.messagebus import Message
 import json
 from twisted.internet import reactor
 
-platform = "HiveMindTerminalv0.2"
+
 
 
 class HiveMindTerminalProtocol(WebSocketClientProtocol):
+    platform = "HiveMindTerminalv0.2"
 
     def onConnect(self, response):
         LOG.info("HiveMind connected: {0}".format(response.peer))
@@ -125,7 +126,7 @@ class HiveMindTerminal(WebSocketClientFactory, ReconnectingClientFactory):
         message.context["source"] = self.client.peer
         message.context["destination"] = "skills"
         if "platform" not in message.context:
-            message.context["platform"] = platform
+            message.context["platform"] = self.protocol.platform
         self.handle_incoming_mycroft(message)
 
     def handle_propagate_message(self, payload, msg_data):
