@@ -73,7 +73,7 @@ class HiveMindProtocol(WebSocketServerProtocol):
         self.factory.mycroft_send("hive.client.connect", data, context)
         # return a pair with WS protocol spoken (or None for any) and
         # custom headers to send in initial WS opening handshake HTTP response
-        headers = {"server": platform}
+        headers = {"server": self.platform}
         return (None, headers)
 
     def onOpen(self):
