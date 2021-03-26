@@ -1,5 +1,6 @@
 from jarbas_hive_mind.utils.emulation import FakeMycroft
-from jarbas_utils import create_daemon
+from jarbas_hive_mind.message import HiveMessage, HiveMessageType
+from ovos_utils import create_daemon
 from time import sleep
 
 
@@ -17,11 +18,15 @@ FakeCroft.connect(20001)
 
 
 def test_broadcast():
+    msg = HiveMessage(msg_type=HiveMessageType.THIRDPRTY,
+                      payload={"ping": "END3"})
+    print(msg)
+
     def broadcast_test():
         while True:
             sleep(5)
             print("\nTESTING BROADCAST FROM end3\n")
-            FakeCroft.interface.broadcast({"ping": "pong"})
+            FakeCroft.interface.broadcast(msg)
 
     create_daemon(broadcast_test)
 

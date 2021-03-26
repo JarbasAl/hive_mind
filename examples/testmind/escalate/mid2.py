@@ -1,5 +1,6 @@
 from jarbas_hive_mind.utils.emulation import FakeMycroft
-from jarbas_utils import create_daemon
+from jarbas_hive_mind.message import HiveMessage, HiveMessageType
+from ovos_utils import create_daemon
 from time import sleep
 
 
@@ -19,17 +20,20 @@ FakeCroft.connect(10000)
 
 
 def test_escalate():
+    msg = HiveMessage(msg_type=HiveMessageType.THIRDPRTY,
+                      payload={"ping": "MID2"})
+
     def escalate_test():
         while True:
             sleep(5)
             print("\nTESTING escalate FROM Mid2\n")
-            FakeCroft.interface.escalate({"mid2": "pong"})
+            FakeCroft.interface.escalate(msg)
 
     create_daemon(escalate_test)
 
 
 # send escalate message every 5 seconds
-#test_escalate()
+test_escalate()
 
 FakeCroft.run()
 

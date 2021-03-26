@@ -18,6 +18,7 @@ def default_config():
             }
 
 
+# TODO use ovos_utils merge_dict
 def _merge_defaults(base, default=None):
     """
         Recursively merging configuration dictionaries.

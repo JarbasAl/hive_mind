@@ -4,6 +4,7 @@ from jarbas_hive_mind.configuration import CONFIGURATION
 from twisted.internet import reactor
 
 
+# TODO ovos_utils FakeBus
 class FakeBus:
     def __init__(self, *args, **kwargs):
         self.events = {}

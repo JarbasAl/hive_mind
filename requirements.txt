@@ -2,8 +2,10 @@ pyopenssl
 service_identity
 autobahn
 twisted
+# TODO increase ovos_utils to latest release
 ovos_utils>=0.0.6
 json_database>=0.2.6
 pycryptodomex
 upnpclient>=0.0.8
 zeroconf>=0.1.6
+mycroft-messagebus-client>=0.9.1

@@ -12,6 +12,7 @@ from ovos_utils.log import LOG
 from ovos_utils.security import encrypt, decrypt
 from binascii import hexlify, unhexlify
 
+# TODO ovos_utils for all of these
 # this used to be a method here, keep here for now in case something is
 # importing it, TODO deprecate
 from ovos_utils import get_ip
@@ -125,6 +126,10 @@ def serialize_message(message):
     # websocket
     if hasattr(message, 'serialize'):
         return message.serialize()
+    elif isinstance(message, dict):
+        message = {k: v if not hasattr(v, 'serialize') else serialize_message(v)
+                   for k, v in message.items()}
+        return json.dumps(message)
     else:
         return json.dumps(message.__dict__)
 
