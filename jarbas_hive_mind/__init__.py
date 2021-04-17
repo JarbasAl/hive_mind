@@ -81,7 +81,7 @@ class HiveMindConnection:
     def _run(self, component):
 
         def fatalError(reason):
-            print(reason)
+            LOG.error(reason)
             err(reason, "Absolutely needed the foo, could not get it")
             reactor.stop()
 
@@ -91,7 +91,7 @@ class HiveMindConnection:
             try:
                 reactor.run()
             except Exception as e:
-                print(e)
+                LOG.exception(e)
 
     def connect(self, component):
         try:
@@ -103,7 +103,7 @@ class HiveMindConnection:
             else:
                 return self.unsafe_connect(component)
         except Exception as e:
-            print(e)
+            LOG.exception(e)
             raise e
 
 

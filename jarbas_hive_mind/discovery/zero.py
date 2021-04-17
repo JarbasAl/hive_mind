@@ -98,7 +98,7 @@ class ZeroScanner(threading.Thread):
                             else:
                                 #LOG.info("Node Updated: " + str(node_data))
                                 self.on_node_update(node_data)
-                            print(zeroconf.cache.__dict__)
+                            LOG.debug(str(zeroconf.cache.__dict__))
                 else:
                     LOG.debug("  No properties")
 

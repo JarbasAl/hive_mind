@@ -91,9 +91,7 @@ class HiveMindSlaveInterface:
             self.bus.emit(message)
 
     def escalate(self, message):
-        print("esc1:", message)
         message = _get_hivemsg(message)
-        print("esc2:", message)
         # when master receives this it will
         # update "targets" field with it's own id
         route_data = {"source": self.peer,
