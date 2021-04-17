@@ -3,9 +3,8 @@ from jarbas_hive_mind.slave import HiveMindSlave
 
 
 def connect_to_hivemind(host="wss://0.0.0.0", port=5678,
-                        name="unsafe",
-                        key="unsafe", crypto_key=None,
-                        useragent="JarbasDroneV0.2",
+                        name="unsafe", key="HerpDerpHerpDurr",
+                        crypto_key=None, useragent="JarbasDroneV0.3",
                         bus=None):
     con = get_connection(host, port)
 

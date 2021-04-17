@@ -19,6 +19,7 @@ setup(
                       "json_database>=0.2.6",
                       "pycryptodomex",
                       "zeroconf>=0.1.6",
+                      "poorman_handshake>=0.1.0",
                       "upnpclient>=0.0.8"],
     url='https://github.com/JarbasAl/hive_mind',
     license='MIT',

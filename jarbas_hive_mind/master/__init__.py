@@ -2,7 +2,7 @@ import base64
 from autobahn.twisted.websocket import WebSocketServerProtocol, \
     WebSocketServerFactory
 from jarbas_hive_mind.database import ClientDatabase
-from jarbas_hive_mind.exceptions import UnauthorizedKeyError
+from jarbas_hive_mind.exceptions import UnauthorizedKeyError, WrongEncryptionKey
 from ovos_utils.log import LOG
 from ovos_utils.messagebus import Message, get_mycroft_bus
 from ovos_utils import get_ip
@@ -12,6 +12,7 @@ import json
 from jarbas_hive_mind.discovery.ssdp import SSDPServer
 from jarbas_hive_mind.discovery.upnp_server import UPNPHTTPServer
 from jarbas_hive_mind.discovery.zero import ZeroConfAnnounce
+from poorman_handshake import HandShake
 import uuid
 
 
@@ -19,7 +20,7 @@ import uuid
 
 # protocol
 class HiveMindProtocol(WebSocketServerProtocol):
-    platform = "HiveMindV0.7"
+    platform = "HiveMindV0.8"
 
     @staticmethod
     def decode_auth(request):
@@ -49,13 +50,24 @@ class HiveMindProtocol(WebSocketServerProtocol):
         ip = request.peer.split(":")[1]
         context = {"source": self.peer}
         self.platform = request.headers.get("platform", "unknown")
-
         try:
             with ClientDatabase() as users:
                 user = users.get_client_by_api_key(key)
                 if not user:
                     raise UnauthorizedKeyError
+                self.handshake = HandShake()
                 self.crypto_key = users.get_crypto_key(key)
+            if not self.crypto_key and not self.factory.handshake_enabled \
+                    and self.factory.require_crypto:
+                LOG.error("No crypto key registered for client, "
+                          "but configured to require crypto!")
+                self.factory.mycroft_send("hive.client.connection.error",
+                                          {"error": "no crypto key registered",
+                                           "ip": ip,
+                                           "api_key": key,
+                                           "platform": self.platform},
+                                          context)
+                raise WrongEncryptionKey
         except UnauthorizedKeyError:
             LOG.error("Client provided an invalid api key")
             self.factory.mycroft_send("hive.client.connection.error",
@@ -76,6 +88,7 @@ class HiveMindProtocol(WebSocketServerProtocol):
         headers = {"server": self.platform}
         return (None, headers)
 
+
     def onOpen(self):
         """
        Connection from client is opened. Fires after opening
@@ -86,6 +99,16 @@ class HiveMindProtocol(WebSocketServerProtocol):
        """
         self.factory.register_client(self, self.platform)
         LOG.info("WebSocket connection open.")
+        hello = {"msg_type": "hello",
+                 "payload": {"handshake": False,
+                             "preshared_key": self.crypto_key is not None,
+                             "crypto_required": self.factory.require_crypto}
+                 }
+        if not self.crypto_key:
+            if self.factory.handshake_enabled:
+                LOG.info("Starting handshake")
+                hello["payload"]["handshake"] = True
+        self.sendMessage(hello)
 
     def onMessage(self, payload, isBinary):
         if isBinary:
@@ -136,6 +159,7 @@ class HiveMindProtocol(WebSocketServerProtocol):
                     doNotCompress=False):
         if isinstance(payload, dict):
             payload = json.dumps(payload)
+        # TODO encryption for binary payloads
         if self.crypto_key and not isBinary:
             payload = encrypt_as_json(self.crypto_key, payload)
         if isinstance(payload, str):
@@ -155,6 +179,10 @@ class HiveMind(WebSocketServerFactory):
         # ip block policy
         self.ip_list = []
         self.blacklist = True  # if False, ip_list is a whitelist
+        # crypto settings
+        self.require_crypto = True  # throw error if crypto key not available
+        self.handshake_enabled = True   # generate a key per session if not
+                                        # hardcoded
         # mycroft_ws
         self.bus = bus or get_mycroft_bus()
         self.register_mycroft_messages()
@@ -318,7 +346,15 @@ class HiveMind(WebSocketServerFactory):
                 data["route"] = [{"source": client.peer,
                                   "targets": [self.peer]}]
 
-            if msg_type == "bus":
+            if msg_type == "hello":
+                LOG.info("handshake received, generating session key")
+                pub = payload.pop("pubkey")
+                payload["shake"] = client.handshake.communicate_key(pub)
+                msg = {"msg_type": "hello", "payload": payload}
+                self.interface.send(msg, client)
+                # start using new key
+                client.crypto_key = client.handshake.aes_key
+            elif msg_type == "bus":
                 self.handle_bus_message(payload, client)
             elif msg_type == "propagate":
                 self.handle_propagate_message(data, client)

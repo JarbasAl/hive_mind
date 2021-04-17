@@ -124,7 +124,7 @@ class HiveMindNode:
         return int(self.address.split(":")[-1])
 
     def connect(self, headers, crypto_key=None, bus=None,
-                node_type=None):
+                node_type=None, *args, **kwargs):
         try:
             # TODO cyclic import
             from jarbas_hive_mind import HiveMindConnection
@@ -139,10 +139,12 @@ class HiveMindNode:
             if bus:
                 component = clazz(bus=bus,
                                   headers=headers,
-                                  crypto_key=crypto_key)
+                                  crypto_key=crypto_key,
+                                  *args, **kwargs)
             else:
                 component = clazz(headers=headers,
-                                  crypto_key=crypto_key)
+                                  crypto_key=crypto_key,
+                                  *args, **kwargs)
             # will check url for ssl
             LOG.debug("Connecting to HiveMind websocket @ {url}".format(
                 url=self.address))

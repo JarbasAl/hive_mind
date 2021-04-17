@@ -8,6 +8,7 @@ from jarbas_hive_mind.utils import encrypt_as_json, decrypt_from_json
 from jarbas_hive_mind.interface import HiveMindSlaveInterface
 from ovos_utils.messagebus import Message
 import json
+from poorman_handshake import HandShake
 from twisted.internet import reactor
 
 
@@ -87,6 +88,9 @@ class HiveMindTerminal(WebSocketClientFactory, ReconnectingClientFactory):
         self.auto_reconnect = auto_reconnect
         self.upnp_server = None
         self.ssdp = None
+        self.handshake = None
+        if not self.crypto_key:
+            self.handshake = HandShake()
         if connection:
             self.bind(connection)
 
@@ -181,7 +185,17 @@ class HiveMindTerminal(WebSocketClientFactory, ReconnectingClientFactory):
         payload = msg["payload"]
 
         # Parse hive protocol
-        if msg_type == "bus":
+        if msg_type == "hello":
+            # respond to handshake
+            if payload.get("shake"):
+                LOG.info("Received encryption key")
+                self.handshake.receive_key(payload["shake"])
+                self.crypto_key = self.handshake.aes_key
+            elif payload["handshake"]:
+                LOG.info("Sending pubkey for handshake")
+                payload["pubkey"] = self.handshake.pubkey
+                self.sendMessage({"msg_type": "hello", "payload": payload})
+        elif msg_type == "bus":
             self.handle_bus_message(payload)
         elif msg_type == "propagate":
             self.handle_propagate_message(payload, msg)
@@ -190,7 +204,7 @@ class HiveMindTerminal(WebSocketClientFactory, ReconnectingClientFactory):
         elif msg_type == "escalate":
             self.handle_escalate_message(payload, msg)
         else:
-            LOG.error("Unknown HiveMind protocol msg_type")
+            LOG.error("Unknown HiveMind protocol msg_type: " + msg_type)
 
     def clientConnectionFailed(self, connector, reason):
         self.status = "disconnected"

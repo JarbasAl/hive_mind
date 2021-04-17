@@ -12,6 +12,10 @@ def default_config():
             'max_connections': -1,
             'mycroft_bus': MYCROFT_WEBSOCKET_CONFIG,
             'port': DEFAULT_PORT,
+            "crypto": {
+                "require_crypto": True,
+                "enable_handshake": True
+            },
             'ssl': {'certificates': CERTS_PATH,
                     'ssl_certfile': 'HiveMind.crt',
                     'ssl_keyfile': 'HiveMind.key'}
