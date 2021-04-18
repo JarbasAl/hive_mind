@@ -23,19 +23,19 @@ class HiveMindProtocol(WebSocketServerProtocol):
 
     @staticmethod
     def decode_auth(request):
-        auth = request.headers.get("authorization")
-        if not auth:
-            cookie = request.headers.get("cookie")
-            if cookie:
-                auth = cookie.replace("X-Authorization=", "")
-                userpass_encoded = bytes(auth, encoding="utf-8")
+        # see if params were passed in url
+        auth = request.params.get("authorization")
+        if auth:
+            auth = auth[0]
+            userpass_encoded = bytes(auth, encoding="utf-8")
         else:
+            # regular websocket auth wss://user:pass@url:port
+            auth = request.headers.get("authorization")
             userpass_encoded = bytes(auth, encoding="utf-8")
             if userpass_encoded.startswith(b"Basic "):
                 userpass_encoded = userpass_encoded[6:-2]
             else:
                 userpass_encoded = userpass_encoded[2:-1]
-
         userpass_decoded = base64.b64decode(userpass_encoded).decode("utf-8")
         name, key = userpass_decoded.split(":")
         return name, key
@@ -84,8 +84,8 @@ class HiveMindProtocol(WebSocketServerProtocol):
 
        Register client in factory, so that it is able to track it.
        """
-        self.factory.register_client(self, self.platform)
         LOG.info("WebSocket connection open.")
+        self.factory.register_client(self, self.platform)
 
     def onMessage(self, payload, isBinary):
 
