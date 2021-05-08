@@ -6,6 +6,9 @@ class HiveMindNodeType(str, Enum):
     NODE = "node"  # anything connected to the hivemind is a "node"
     MIND = "mind"  # listening for connections and providing mycroft-core
                    # (mycroft itself may be running in a different "mind")
+    FAKECROFT = "fakecroft"  # a mind, that pretends to be running mycroft
+                             # but is actually using a different stack
+    # (mycroft itself may be running in a different "mind")
     SLAVE = "slave"  # node that can be partially controlled by a "mind"
     TERMINAL = "terminal"  # user facing endpoint that connects to some Mind
                            # and does not itself accept connections

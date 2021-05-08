@@ -15,6 +15,7 @@ from jarbas_hive_mind.discovery.upnp_server import UPNPHTTPServer
 from jarbas_hive_mind.discovery.zero import ZeroConfAnnounce
 from jarbas_hive_mind.nodes import HiveMindNodeType
 import uuid
+from ovos_utils.messagebus import FakeBus
 
 
 # protocol
@@ -159,7 +160,10 @@ class HiveMind(WebSocketServerFactory):
         self.ip_list = []
         self.blacklist = True  # if False, ip_list is a whitelist
         # mycroft_ws
-        self.bus = bus or get_mycroft_bus()
+        if bus is False:
+            self.bus = FakeBus()
+        else:
+            self.bus = bus or get_mycroft_bus()
         self.register_mycroft_messages()
 
         self.interface = HiveMindMasterInterface(self)
