@@ -1,5 +1,5 @@
 import base64
-from autobahn.twisted.websocket import WebSocketServerProtocol, \
+from autobahn.asyncio.websocket import WebSocketServerProtocol, \
     WebSocketServerFactory
 from jarbas_hive_mind.database import ClientDatabase
 from jarbas_hive_mind.exceptions import UnauthorizedKeyError
@@ -42,7 +42,7 @@ class HiveMindProtocol(WebSocketServerProtocol):
         return name, key
 
     def onConnect(self, request):
-
+        print(request)
         LOG.info("Client connecting: {0}".format(request.peer))
 
         name, key = self.decode_auth(request)

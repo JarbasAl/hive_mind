@@ -16,7 +16,6 @@ setup(
     install_requires=["pyopenssl",
                       "service_identity",
                       "autobahn",
-                      "twisted",
                       "mycroft-messagebus-client>=0.9.1",
                       "ovos_utils>=0.0.6",
                       "json_database>=0.2.6",

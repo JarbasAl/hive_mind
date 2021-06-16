@@ -1,4 +1,3 @@
-from twisted.internet.error import DNSLookupError
 
 
 class HiveMindException(Exception):
@@ -29,5 +28,5 @@ class SecureConnectionFailed(ConnectionError):
     """ Could not connect by SSL """
 
 
-class HiveMindEntryPointNotFound(ConnectionError, DNSLookupError):
+class HiveMindEntryPointNotFound(ConnectionError):
     """ can not connect to provided address """

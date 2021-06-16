@@ -15,20 +15,20 @@ class HiveMindSlaveProtocol(HiveMindTerminalProtocol):
         return self.factory.bus
 
     def onConnect(self, response):
+        super().onConnect(response)
         self.bus.emit(Message("hive.mind.connected",
                               {"server_id": response.headers["server"]}))
-        super().onConnect(response)
 
     def onOpen(self):
-        self.bus.emit(Message("hive.mind.websocket.open"))
         super().onOpen()
+        self.bus.emit(Message("hive.mind.websocket.open"))
 
     def onClose(self, wasClean, code, reason):
+        super().onClose(wasClean, code, reason)
         self.bus.emit(Message("hive.mind.client.closed",
                               {"wasClean": wasClean,
                                "reason": reason,
                                "code": code}))
-        super().onClose(wasClean, code, reason)
 
 
 class HiveMindSlave(HiveMindTerminal):

@@ -1,26 +1,7 @@
 from jarbas_hive_mind import get_listener, get_connection
 from jarbas_hive_mind.slave import HiveMindSlave
 from jarbas_hive_mind.configuration import CONFIGURATION
-from twisted.internet import reactor
-
-
-# TODO ovos_utils FakeBus
-class FakeBus:
-    def __init__(self, *args, **kwargs):
-        self.events = {}
-
-    def on(self, msg_type, handler):
-        if msg_type not in self.events:
-            self.events[msg_type] = []
-        self.events[msg_type].append(handler)
-
-    def emit(self, message):
-        if message.msg_type in self.events:
-            for handler in self.events[message.msg_type]:
-                handler(message)
-
-    def remove(self, msg_type, handler):
-        pass
+from jarbas_hive_mind.utils.fakebus import FakeBus
 
 
 class FakeMycroft:
@@ -88,5 +69,5 @@ class FakeMycroft:
         self.slave_connection = self.connection.connect(con)
 
     def run(self):
-        reactor.run()
+        self.hive.run()
 

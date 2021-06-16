@@ -1,6 +1,7 @@
 import base64
-from twisted.internet import reactor, ssl
-from twisted.internet.error import ReactorNotRunning
+import asyncio
+import ssl
+
 from jarbas_hive_mind.master import HiveMind, HiveMindProtocol
 from jarbas_hive_mind.configuration import CONFIGURATION
 from jarbas_hive_mind.settings import DEFAULT_PORT
@@ -9,7 +10,6 @@ from jarbas_hive_mind.exceptions import SecureConnectionFailed, ConnectionError
 from ovos_utils.messagebus import get_mycroft_bus
 from ovos_utils.log import LOG
 from os.path import join, exists, isfile
-from twisted.python.log import err
 import logging
 
 logging.getLogger("urllib3.connectionpool").setLevel("INFO")
@@ -21,17 +21,21 @@ logging.getLogger("JsonDatabase").setLevel("INFO")
 class HiveMindConnection:
     _autorun = True
 
-    def __init__(self, host="127.0.0.1", port=DEFAULT_PORT):
+    def __init__(self, host="0.0.0.0", port=DEFAULT_PORT,
+                 accept_self_signed=True):
         host = host.replace("https://", "wss://").replace("http://", "ws://")
         if "wss://" in host:
-            secure = True
+            self._secure = True
         else:
-            secure = False
-        self._secure = secure
+            self._secure = False
 
         host = host.replace("wss://", "").replace("ws://", "")
         self.host = host
         self.port = port
+        self.loop = None
+        self.ws = None
+
+        self.accept_self_signed = accept_self_signed
 
     @property
     def is_secure(self):
@@ -64,34 +68,36 @@ class HiveMindConnection:
 
     def secure_connect(self, component):
         self._secure = True
-        component.bind(self)
+        self.ws = component
+        self.ws.bind(self)
         LOG.info("Connecting securely to " + self.address)
-        contextFactory = ssl.ClientContextFactory()
-        self._run(reactor.connectSSL(self.host, self.port, component, contextFactory))
-        return component
+        self.run()
 
     def unsafe_connect(self, component):
         self._secure = False
-        component.bind(self)
+        self.ws = component
+        self.ws.bind(self)
         LOG.info("Connecting to " + self.address)
         LOG.warning("This listener is unsecured")
-        self._run(reactor.connectTCP(self.host, self.port, component))
-        return component
+        self.run()
 
-    def _run(self, component):
-
-        def fatalError(reason):
-            LOG.error(reason)
-            err(reason, "Absolutely needed the foo, could not get it")
-            reactor.stop()
-
-       # component.addErrback(fatalError)
-
-        if not reactor.running and self._autorun:
-            try:
-                reactor.run()
-            except Exception as e:
-                LOG.exception(e)
+    def run(self):
+        self.loop = asyncio.get_event_loop()
+        if self.is_secure:
+            # The certificate is created with pymotw.com as the hostname,
+            # which will not match when the example code runs elsewhere,
+            # so disable hostname verification.
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            if self.accept_self_signed:
+                ssl_context.verify_mode = ssl.CERT_NONE
+            coro = self.loop.create_connection(self.ws, self.host,
+                                               self.port, ssl=ssl_context)
+        else:
+            coro = self.loop.create_connection(self.ws, self.host, self.port)
+        self.loop.run_until_complete(coro)
+        self.loop.run_forever()
+        self.loop.close()
 
     def connect(self, component):
         try:
@@ -106,14 +112,19 @@ class HiveMindConnection:
             LOG.exception(e)
             raise e
 
+    def close(self):
+        if self.loop:
+            self.loop.close()
+
 
 class HiveMindListener:
     _autorun = True
     default_factory = HiveMind
     default_protocol = HiveMindProtocol
 
-    def __init__(self, port=DEFAULT_PORT, max_cons=-1, bus=None):
-        self.host = "0.0.0.0"
+    def __init__(self, port=DEFAULT_PORT, max_cons=-1, bus=None,
+                 host="0.0.0.0"):
+        self.host = host
         self.port = port
         self.max_cons = max_cons
         self._use_ssl = CONFIGURATION["ssl"].get("use_ssl", False)
@@ -185,37 +196,48 @@ class HiveMindListener:
 
     def secure_listen(self, key=None, cert=None, factory=None, protocol=None):
         self._use_ssl = True
-        key = key or self.ssl_key
-        cert = cert or self.ssl_cert
+        self._ssl_key = key or self.ssl_key
+        self._ssl_cert = cert or self.ssl_cert
 
-        # SSL server context: load server key and certificate
-        contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
-
-        factory = factory or self.default_factory(bus=self.bus)
-        factory.protocol = protocol or self.default_protocol
+        self.factory = factory or self.default_factory(bus=self.bus)
+        self.factory.protocol = protocol or self.default_protocol
         if self.max_cons >= 0:
-            factory.setProtocolOptions(maxConnections=self.max_cons)
-        factory.bind(self)
-        self.factory = factory
-        reactor.listenSSL(self.port, factory, contextFactory)
-        LOG.info("HiveMind Listening: " + self.address)
-        if self._autorun and not reactor.running:
-            reactor.run()
+            self.factory.setProtocolOptions(maxConnections=self.max_cons)
+        self.factory.bind(self)
+
+        if self._autorun:
+            self.run()
         return factory
 
     def unsafe_listen(self, factory=None, protocol=None):
         self._use_ssl = False
-        factory = factory or self.default_factory(bus=self.bus)
-        factory.protocol = protocol or self.default_protocol
+        self.factory = factory or self.default_factory(bus=self.bus)
+        self.factory.protocol = protocol or self.default_protocol
         if self.max_cons >= 0:
-            factory.setProtocolOptions(maxConnections=self.max_cons)
-        factory.bind(self)
-        self.factory = factory
-        reactor.listenTCP(self.port, factory)
-        LOG.info("HiveMind Listening (UNSECURED): " + self.address)
-        if self._autorun and not reactor.running:
-            reactor.run()
+            self.factory.setProtocolOptions(maxConnections=self.max_cons)
+        self.factory.bind(self)
+
+        if self._autorun:
+            self.run()
         return factory
+
+    def run(self):
+        self.loop = asyncio.get_event_loop()
+        if self.is_secure:
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.load_cert_chain(self.ssl_cert, self.ssl_key)
+
+            coro = self.loop.create_server(self.factory, self.host,
+                                           self.port, ssl=ssl_context)
+            LOG.info("HiveMind Listening: " + self.address)
+        else:
+            coro = self.loop.create_server(self.factory, self.host, self.port)
+            LOG.info("HiveMind Listening (UNSECURED): " + self.address)
+
+        self.server = self.loop.run_until_complete(coro)
+        self.loop.run_forever()
+        self.stop()
 
     def listen(self, factory=None, protocol=None):
         if self.is_secure:
@@ -224,20 +246,8 @@ class HiveMindListener:
             return self.unsafe_listen(factory=factory, protocol=protocol)
 
     def stop(self):
-        """Stop the reactor and join the reactor thread until it stops.
-        """
-        try:
-            reactor.stop()
-        except ReactorNotRunning:
-            LOG.info("twisted reactor stopped")
-        except Exception as e:
-            LOG.error(e)
-
-    def stop_from_thread(self):
-        reactor.callFromThread(self.stop)
-        for p in reactor.getDelayedCalls():
-            if p.active():
-                p.cancel()
+        self.server.close()
+        self.loop.close()
 
 
 def get_listener(port=DEFAULT_PORT, max_connections=-1, bus=None):

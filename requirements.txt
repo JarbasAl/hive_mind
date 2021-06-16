@@ -1,9 +1,7 @@
 pyopenssl
 service_identity
 autobahn
-twisted
-# TODO increase ovos_utils to latest release
-ovos_utils>=0.0.6
+ovos_utils>=0.0.9a2
 json_database>=0.2.6
 pycryptodomex
 upnpclient>=0.0.8

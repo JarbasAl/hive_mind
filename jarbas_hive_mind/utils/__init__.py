@@ -23,7 +23,7 @@ def validate_param(value, name):
         raise ValueError("Missing or empty %s in conf " % name)
 
 
-def create_self_signed_cert(cert_dir=CERTS_PATH, name="jarbas_hivemind"):
+def create_self_signed_cert(cert_dir=CERTS_PATH, name="JarbasHiveMind"):
     """
     If name.crt and name.key don't exist in cert_dir, create a new
     self-signed cert and key pair and write them into that directory.
@@ -38,7 +38,7 @@ def create_self_signed_cert(cert_dir=CERTS_PATH, name="jarbas_hivemind"):
             or not exists(join(cert_dir, KEY_FILE)):
         # create a key pair
         k = crypto.PKey()
-        k.generate_key(crypto.TYPE_RSA, 1024)
+        k.generate_key(crypto.TYPE_RSA, 4096)
 
         # create a self-signed cert
         cert = crypto.X509()
@@ -46,14 +46,14 @@ def create_self_signed_cert(cert_dir=CERTS_PATH, name="jarbas_hivemind"):
         cert.get_subject().ST = "Europe"
         cert.get_subject().L = "Mountains"
         cert.get_subject().O = "Jarbas AI"
-        cert.get_subject().OU = "Powered by Mycroft-Core"
+        cert.get_subject().OU = "JarbasHiveMind"
         cert.get_subject().CN = gethostname()
         cert.set_serial_number(random.randint(0, 2000))
         cert.gmtime_adj_notBefore(0)
         cert.gmtime_adj_notAfter(10 * 365 * 24 * 60 * 60)
         cert.set_issuer(cert.get_subject())
         cert.set_pubkey(k)
-        cert.sign(k, 'sha1')
+        cert.sign(k, 'sha512')
         if not exists(cert_dir):
             makedirs(cert_dir)
         open(cert_path, "wb").write(
@@ -163,3 +163,39 @@ def decrypt_from_json(key, data):
         return decrypt(key, ciphertext, tag, nonce)
     except ValueError:
         raise DecryptionKeyError
+
+
+def wscode2error(error_code):
+    # Source: https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent#Status_codes
+    codes = {
+        1000: 'Normal Closure',
+        1001: 'Going Away',
+        1002: 'Protocol Error',
+        1003: 'Unsupported Data',
+        1004: '(For future)',
+        1005: 'No Status Received',
+        1006: 'Abnormal Closure',
+        1007: 'Invalid frame payload data',
+        1008: 'Policy Violation',
+        1009: 'Message too big',
+        1010: 'Missing Extension',
+        1011: 'Internal Error',
+        1012: 'Service Restart',
+        1013: 'Try Again Later',
+        1014: 'Bad Gateway',
+        1015: 'TLS Handshake'
+    }
+    error_code = int(error_code)
+    if error_code in codes:
+        return codes[error_code]
+    elif error_code <= 999:
+        return '(Unused)'
+    elif error_code <= 1999:
+        return '(For WebSocket standard)'
+    elif error_code <= 2999:
+        return '(For WebSocket extensions)'
+    elif error_code <= 3999:
+        return '(For libraries and frameworks)'
+    elif error_code <= 4999:
+        return '(For applications)'
+    return '(Unknown)'
